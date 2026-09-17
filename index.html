@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactieve HTML5-visualisatie voor de optelling van twee fasors.">
+  <title>Optelling van twee fasors</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --panel-2: #eef3f9;
+      --text: #172033;
+      --muted: #5e6a7d;
+      --border: #cfd8e6;
+      --grid: #d8e1ec;
+      --axis: #67748a;
+      --p1: #1976d2;
+      --p2: #ef6c00;
+      --sum: #7b1fa2;
+      --focus: #005fcc;
+      --shadow: 0 12px 35px rgba(38, 55, 82, .12);
+    }
+    body.dark {
+      --bg: #0d1421;
+      --panel: #151f2f;
+      --panel-2: #1c293b;
+      --text: #edf3fb;
+      --muted: #b4c0d0;
+      --border: #3b4b61;
+      --grid: #29384c;
+      --axis: #7f91aa;
+      --focus: #7ab8ff;
+      --shadow: 0 12px 35px rgba(0, 0, 0, .28);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+    .app { width: min(1500px, 100%); margin: auto; padding: 22px; }
+    header { display: flex; justify-content: space-between; align-items: start; gap: 18px; margin-bottom: 18px; }
+    h1 { margin: 0 0 5px; font-size: clamp(1.5rem, 3vw, 2.25rem); }
+    header p { margin: 0; color: var(--muted); }
+    .theme { flex: 0 0 auto; }
+    button { border: 1px solid var(--border); border-radius: 10px; padding: .65rem .9rem; background: var(--panel); color: var(--text); cursor: pointer; font-weight: 650; }
+    button:hover { background: var(--panel-2); }
+    .layout { display: grid; grid-template-columns: 330px 1fr; gap: 18px; }
+    .panel, .chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); }
+    .panel { padding: 16px; }
+    .panel h2, .chart-card h2 { margin: 0; font-size: 1.08rem; }
+    fieldset { margin: 14px 0 0; padding: 13px; border: 1px solid var(--border); border-radius: 12px; }
+    legend { padding: 0 6px; font-weight: 750; }
+    .p1 legend { color: var(--p1); } .p2 legend { color: var(--p2); }
+    .control { margin: 10px 0 13px; }
+    .control label { display: flex; justify-content: space-between; gap: 8px; font-size: .92rem; }
+    output { min-width: 74px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+    input[type="range"] { width: 100%; margin: 7px 0 0; accent-color: var(--focus); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 14px 0; }
+    .actions button:first-child { background: var(--focus); color: #fff; border-color: transparent; }
+    .formula, .readout { background: var(--panel-2); border-radius: 12px; padding: 12px; color: var(--muted); font-size: .88rem; line-height: 1.55; }
+    .readout { margin-top: 10px; }
+    .readout strong { color: var(--text); }
+    .visuals { display: grid; grid-template-columns: minmax(330px, .82fr) minmax(480px, 1.3fr); gap: 18px; }
+    .chart-card { padding: 15px; min-width: 0; }
+    .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+    .card-head span { color: var(--muted); font-size: .83rem; }
+    canvas { display: block; width: 100%; height: 520px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel); }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .86rem; color: var(--muted); }
+    .key { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 22px; height: 4px; border-radius: 3px; }
+    .help { margin: 14px 2px 0; color: var(--muted); font-size: .86rem; }
+    @media (max-width: 1030px) { .layout { grid-template-columns: 1fr; } .visuals { grid-template-columns: 1fr; } canvas { height: 440px; } }
+    @media (max-width: 570px) { .app { padding: 12px; } header { align-items: center; } .visuals { grid-template-columns: minmax(0, 1fr); } canvas { height: 360px; } .actions { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div><h1>Optelling van twee fasors</h1><p>Stel amplitude, hoekfrequentie en beginfase in en bekijk de vectorsom.</p></div>
+    <button class="theme" id="themeBtn" type="button" aria-pressed="false">Donkere modus</button>
+  </header>
+
+  <div class="layout">
+    <aside class="panel" aria-label="Instellingen">
+      <h2>Instellingen</h2>
+      <fieldset class="p1"><legend>Fasor 1</legend>
+        <div class="control"><label for="a1">Amplitude A₁ <output id="a1o"></output></label><input id="a1" type="range" min="0" max="5" step="0.05" value="2.5"></div>
+        <div class="control"><label for="w1">Hoekfrequentie ω₁ <output id="w1o"></output></label><input id="w1" type="range" min="-5" max="5" step="0.05" value="1"></div>
+        <div class="control"><label for="p1">Beginfase φ₁ <output id="p1o"></output></label><input id="p1" type="range" min="-180" max="180" step="1" value="0"></div>
+      </fieldset>
+      <fieldset class="p2"><legend>Fasor 2</legend>
+        <div class="control"><label for="a2">Amplitude A₂ <output id="a2o"></output></label><input id="a2" type="range" min="0" max="5" step="0.05" value="1.7"></div>
+        <div class="control"><label for="w2">Hoekfrequentie ω₂ <output id="w2o"></output></label><input id="w2" type="range" min="-5" max="5" step="0.05" value="1.45"></div>
+        <div class="control"><label for="p2">Beginfase φ₂ <output id="p2o"></output></label><input id="p2" type="range" min="-180" max="180" step="1" value="45"></div>
+      </fieldset>
+      <div class="control"><label for="speed">Animatiesnelheid <output id="speedo"></output></label><input id="speed" type="range" min="0.1" max="3" step="0.1" value="1"></div>
+      <div class="control"><label for="window">Zichtbaar tijdvenster <output id="windowo"></output></label><input id="window" type="range" min="5" max="40" step="1" value="16"></div>
+      <div class="actions"><button id="playBtn" type="button">Pauzeren</button><button id="resetBtn" type="button">Tijd terugzetten</button></div>
+      <div class="formula">z₁(t) = A₁·e<sup>i(ω₁t+φ₁)</sup><br>z₂(t) = A₂·e<sup>i(ω₂t+φ₂)</sup><br>x(t) = Re[z₁(t)+z₂(t)]</div>
+      <div class="readout" id="readout" aria-live="polite"></div>
+    </aside>
+
+    <section class="visuals">
+      <article class="chart-card">
+        <div class="card-head"><h2>Ronddraaiende vectoren</h2><span>complex vlak</span></div>
+        <canvas id="phasor" aria-label="Geanimeerde fasoren in het complexe vlak"></canvas>
+        <div class="legend"><span class="key"><i class="swatch" style="background:var(--p1)"></i>z₁</span><span class="key"><i class="swatch" style="background:var(--p2)"></i>z₂, kop-aan-staart</span><span class="key"><i class="swatch" style="background:var(--sum)"></i>z₁ + z₂</span></div>
+      </article>
+      <article class="chart-card">
+        <div class="card-head"><h2>Reële delen in functie van de tijd</h2><span>bewegend tijdvenster</span></div>
+        <canvas id="signal" aria-label="Grafiek van de reële delen en hun som"></canvas>
+        <div class="legend"><span class="key"><i class="swatch" style="background:var(--p1)"></i>Re(z₁)</span><span class="key"><i class="swatch" style="background:var(--p2)"></i>Re(z₂)</span><span class="key"><i class="swatch" style="background:var(--sum)"></i>Som</span></div>
+      </article>
+    </section>
+  </div>
+  <p class="help">Een negatieve hoekfrequentie laat een fasor in de tegengestelde richting draaien. Bij gelijke hoekfrequenties blijft de onderlinge fasehoek constant.</p>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const ids = ['a1','w1','p1','a2','w2','p2','speed','window'];
+  const el = Object.fromEntries(ids.map(id => [id, $(id)]));
+  let t = 0, running = true, last = performance.now();
+  const phasor = $('phasor'), signal = $('signal');
+  const pc = phasor.getContext('2d'), sc = signal.getContext('2d');
+
+  function css(name) { return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+  function val(id) { return Number(el[id].value); }
+  function rad(deg) { return deg * Math.PI / 180; }
+  function state(time=t) {
+    const q1 = val('w1')*time + rad(val('p1')), q2 = val('w2')*time + rad(val('p2'));
+    const z1 = {x:val('a1')*Math.cos(q1), y:val('a1')*Math.sin(q1)};
+    const z2 = {x:val('a2')*Math.cos(q2), y:val('a2')*Math.sin(q2)};
+    return {z1,z2,sum:{x:z1.x+z2.x,y:z1.y+z2.y}};
+  }
+  function fit(canvas, ctx) {
+    const r = canvas.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(r.width*dpr)), h = Math.max(1, Math.round(r.height*dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width=w; canvas.height=h; }
+    ctx.setTransform(dpr,0,0,dpr,0,0); return {w:r.width,h:r.height};
+  }
+  function line(ctx,x1,y1,x2,y2,color,width=1,dash=[]) { ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=width; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); ctx.restore(); }
+  function arrow(ctx,x1,y1,x2,y2,color,width=3) {
+    line(ctx,x1,y1,x2,y2,color,width); const a=Math.atan2(y2-y1,x2-x1), s=10;
+    ctx.save(); ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x2-s*Math.cos(a-.42),y2-s*Math.sin(a-.42)); ctx.lineTo(x2-s*Math.cos(a+.42),y2-s*Math.sin(a+.42)); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  function label(ctx,text,x,y,color) { ctx.save(); ctx.fillStyle=color; ctx.font='600 12px system-ui'; ctx.fillText(text,x,y); ctx.restore(); }
+
+  function drawPhasor() {
+    const {w,h}=fit(phasor,pc), cx=w/2, cy=h/2, maxA=Math.max(1,val('a1')+val('a2')), scale=.42*Math.min(w,h)/maxA;
+    pc.clearRect(0,0,w,h); const grid=css('--grid'), axis=css('--axis'), muted=css('--muted');
+    for(let r=1;r<=4;r++){ pc.beginPath(); pc.arc(cx,cy,r*.1*Math.min(w,h),0,Math.PI*2); pc.strokeStyle=grid; pc.lineWidth=1; pc.stroke(); }
+    line(pc,12,cy,w-12,cy,axis,1); line(pc,cx,12,cx,h-12,axis,1);
+    label(pc,'Re',w-34,cy-8,muted); label(pc,'Im',cx+8,22,muted);
+    const s=state();
+    const x1=cx+s.z1.x*scale,y1=cy-s.z1.y*scale,x2=x1+s.z2.x*scale,y2=y1-s.z2.y*scale;
+    arrow(pc,cx,cy,x1,y1,css('--p1')); arrow(pc,x1,y1,x2,y2,css('--p2')); arrow(pc,cx,cy,x2,y2,css('--sum'),4);
+    line(pc,cx+s.z2.x*scale,cy-s.z2.y*scale,x2,y2,css('--p1'),1,[5,5]);
+    label(pc,'z₁',x1+7,y1-7,css('--p1')); label(pc,'z₂',x2+7,y2+15,css('--p2')); label(pc,'z₁+z₂',x2+7,y2-7,css('--sum'));
+  }
+  function drawSignal() {
+    const {w,h}=fit(signal,sc), m={l:53,r:18,t:18,b:38}, pw=w-m.l-m.r, ph=h-m.t-m.b, span=val('window'), start=Math.max(0,t-span), end=start+span;
+    const lim=Math.max(1, val('a1')+val('a2'))*1.15, grid=css('--grid'), axis=css('--axis'), muted=css('--muted');
+    sc.clearRect(0,0,w,h); sc.save(); sc.font='11px system-ui'; sc.fillStyle=muted;
+    for(let i=0;i<=4;i++){ const y=m.t+i*ph/4, v=lim*(1-2*i/4); line(sc,m.l,y,w-m.r,y,grid); sc.textAlign='right'; sc.textBaseline='middle'; sc.fillText(v.toFixed(1),m.l-8,y); }
+    for(let i=0;i<=5;i++){ const x=m.l+i*pw/5, tv=start+i*span/5; line(sc,x,m.t,x,h-m.b,grid); sc.textAlign='center'; sc.textBaseline='top'; sc.fillText(tv.toFixed(1),x,h-m.b+8); }
+    line(sc,m.l,m.t,m.l,h-m.b,axis); line(sc,m.l,h-m.b,w-m.r,h-m.b,axis); sc.textAlign='right'; sc.fillText('t (s)',w-m.r,h-10); sc.restore();
+    const plot=(color,getY,width=2)=>{ sc.save(); sc.beginPath(); sc.rect(m.l,m.t,pw,ph); sc.clip(); sc.beginPath(); for(let px=0;px<=Math.max(2,pw);px++){ const tt=start+px/pw*span, y=m.t+(lim-getY(state(tt)))/(2*lim)*ph, x=m.l+px; px?sc.lineTo(x,y):sc.moveTo(x,y); } sc.strokeStyle=color; sc.lineWidth=width; sc.stroke(); sc.restore(); };
+    plot(css('--p1'),s=>s.z1.x); plot(css('--p2'),s=>s.z2.x); plot(css('--sum'),s=>s.sum.x,3);
+    if(t>=start&&t<=end){ const x=m.l+(t-start)/span*pw; line(sc,x,m.t,x,h-m.b,axis,1,[4,4]); }
+  }
+  function updateLabels() {
+    $('a1o').value=val('a1').toFixed(2); $('a2o').value=val('a2').toFixed(2);
+    $('w1o').value=val('w1').toFixed(2)+' rad/s'; $('w2o').value=val('w2').toFixed(2)+' rad/s';
+    $('p1o').value=val('p1').toFixed(0)+'°'; $('p2o').value=val('p2').toFixed(0)+'°';
+    $('speedo').value=val('speed').toFixed(1)+'×'; $('windowo').value=val('window').toFixed(0)+' s';
+  }
+  function updateReadout() { const s=state(), mag=Math.hypot(s.sum.x,s.sum.y), ang=Math.atan2(s.sum.y,s.sum.x)*180/Math.PI; $('readout').innerHTML=`<strong>Actuele waarden</strong><br>t = ${t.toFixed(2)} s<br>Re(z₁ + z₂) = ${s.sum.x.toFixed(3)}<br>|z₁ + z₂| = ${mag.toFixed(3)}<br>hoek somfasor = ${ang.toFixed(1)}°`; }
+  function draw(){ drawPhasor(); drawSignal(); updateReadout(); }
+  ids.forEach(id=>el[id].addEventListener('input',()=>{updateLabels();draw();}));
+  $('playBtn').addEventListener('click',()=>{ running=!running; $('playBtn').textContent=running?'Pauzeren':'Afspelen'; last=performance.now(); });
+  $('resetBtn').addEventListener('click',()=>{t=0;last=performance.now();draw();});
+  $('themeBtn').addEventListener('click',()=>{ const dark=document.body.classList.toggle('dark'); $('themeBtn').textContent=dark?'Lichte modus':'Donkere modus'; $('themeBtn').setAttribute('aria-pressed',String(dark)); draw(); });
+  new ResizeObserver(draw).observe(document.querySelector('.visuals'));
+  function tick(now){ const dt=Math.min(.05,(now-last)/1000); last=now; if(running)t+=dt*val('speed'); draw(); requestAnimationFrame(tick); }
+  updateLabels(); requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
